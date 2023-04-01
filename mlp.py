@@ -9,6 +9,9 @@ df=df.drop(['Id'],axis=1)
 from sklearn.preprocessing import LabelEncoder
 label_encoder_teste = LabelEncoder()
 
+hit_rate_train=[]
+
+error_rate_train=[]
 X = df.iloc[:, 0:4].values
 
 y = df.iloc[:, 4].values
@@ -20,89 +23,148 @@ y = label_encoder_workclass.fit_transform(y)
 
 
 
+
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.compose import ColumnTransformer
+
+y_labed = np.zeros((len(y), 3))
+
+for i in range(len(y)):
+    y_labed[i, y[i]] = 1
+
+
+X = (X-np.mean(X))/(np.std(X))
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.33, random_state=42)
+    X, y_labed, test_size=0.2)
 
 
-def logistic(x):
-    return 1.0/(1 + np.exp(-x))
+import numpy as np
+import matplotlib.pyplot as plt
 
-def logistic_deriv(x):
-    return logistic(x) * (1 - logistic(x))
+np.random.seed(42)
 
-def tanh(x):
-  return np.tanh(x)
 
-LR = 0.1   
 
-I_dim = 4
-H_dim = 4
+feature_set =X_train 
 
-epoch_count = 800
+labels = y_train 
+
+one_hot_labels = y_train
+
+
+
+
+
+def sigmoid(x):
+    return 1/(1+np.exp(-x))
+
+def sigmoid_der(x):
+    return sigmoid(x) *(1-sigmoid (x))
+
+def softmax(A):
+    expA = np.exp(A)
+    return expA / expA.sum(axis=1, keepdims=True)
+
+instances = feature_set.shape[0]
+attributes = feature_set.shape[1]
+hidden_nodes = 4
+output_labels = 3
+
+wh = np.random.rand(attributes,hidden_nodes)
+bh = np.random.randn(hidden_nodes)
+
+wo = np.random.rand(hidden_nodes,output_labels)
+bo = np.random.randn(output_labels)
+lr = 10e-3
+error_cost = []
+def getHitRate(y_predict,y_true):
+    hits = 0
+    for sample in range(0,len( y_predict)):
+        is_hit=decison(y_predict[sample])==np.array(y_true[sample]).tolist()
+        
+        
+        if(is_hit):
+            hits=hits+1
+    return 100*hits/len(y_true)
+def decison(g):
+    classification_smaple=[]
+    g=np.array(g)
+  
+    for i in range(0,3):
+        if(g[i]>0.5):
+            classification_smaple.append(1)
+        else: classification_smaple.append(0);
+         
+    
+    return classification_smaple;
+
+for epoch in range(400):
+############# feedforward
+
+    # Phase 1
+    zh = np.dot(feature_set, wh) + bh
+    ah = sigmoid(zh)
+
+    # Phase 2
+    zo = np.dot(ah, wo) + bo
+    ao = sigmoid(zo)
+
+########## Back Propagation
+
+########## Phase 1
+
+    dcost_dzo = ao - one_hot_labels
+    dzo_dwo = ah
+
+    dcost_wo = np.dot(dzo_dwo.T, dcost_dzo)
+
+    dcost_bo = dcost_dzo
+
+########## Phases 2
+
+    dzo_dah = wo
+    dcost_dah = np.dot(dcost_dzo , dzo_dah.T)
+    dah_dzh = sigmoid_der(zh)
+    dzh_dwh = feature_set
+    dcost_wh = np.dot(dzh_dwh.T, dah_dzh * dcost_dah)
+
+    dcost_bh = dcost_dah * dah_dzh
+
+    # Update Weights ================
+
+    wh -= lr * dcost_wh
+    bh -= lr * dcost_bh.sum(axis=0)
+
+    wo -= lr * dcost_wo
+    bo -= lr * dcost_bo.sum(axis=0)
 
  
-weights_ItoH = np.random.uniform(-0.5, 0.5, (I_dim, H_dim))
-weights_HtoO = np.random.uniform(-0.5, 0.5, H_dim)
+    loss = np.sum((ao-one_hot_labels)**2  )
+    hit_rate_train.append(getHitRate(ao,one_hot_labels))
+    error_rate_train.append(100-getHitRate(ao,one_hot_labels))
+    error_cost.append(loss)
+ 
 
-preActivation_H = np.zeros(H_dim)
-postActivation_H = np.zeros(H_dim)
 
-training_data =X_train
-target_output = y_train
-training_data = np.asarray(training_data)
-training_count = len(training_data[:,0])
 
-validation_data = X_test
-validation_output = y_test
-validation_data = np.asarray(validation_data)
-validation_count = len(validation_data[:,0])
 
-#####################
-#training
-#####################
-for epoch in range(epoch_count):
+plt.figure() 
+plt.plot(error_rate_train,label='Error rate(%)')
+plt.plot(hit_rate_train,label='Hit rate(%)')
+plt.xlabel('Epoch')
+plt.legend()
 
-    for sample in range(training_count):
-        for node in range(H_dim):
-            preActivation_H[node] = np.dot(training_data[sample,:], weights_ItoH[:, node])
-            postActivation_H[node] = logistic(preActivation_H[node])
-            
-        preActivation_O = np.dot(postActivation_H, weights_HtoO)
-        postActivation_O = logistic(preActivation_O)
-        
-        FE = postActivation_O - target_output[sample]
-        
-        for H_node in range(H_dim):
-            S_error = FE * logistic_deriv(preActivation_O)
-            gradient_HtoO = S_error * postActivation_H[H_node]
-                       
-            for I_node in range(I_dim):
-                input_value = training_data[sample, I_node]
-                gradient_ItoH = S_error * weights_HtoO[H_node] * logistic_deriv(preActivation_H[H_node]) * input_value
-                
-                weights_ItoH[I_node, H_node] -= LR * gradient_ItoH
-                
-            weights_HtoO[H_node] -= LR * gradient_HtoO
 
-#####################
-#validation
-#####################            
-correct_classification_count = 0
-for sample in range(validation_count):
-    for node in range(H_dim):
-        preActivation_H[node] = np.dot(validation_data[sample,:], weights_ItoH[:, node])
-        postActivation_H[node] = logistic(preActivation_H[node])
-            
-    preActivation_O = np.dot(postActivation_H, weights_HtoO)
-    postActivation_O = logistic(preActivation_O)
-        
-    if postActivation_O >0:
-        output = 1
-    else:
-        output = 0    
-        
-    if output == validation_output[sample]:
-        correct_classification_count += 1
+   # Phase 1
+zh = np.dot(X_test, wh) + bh
+ah = sigmoid(zh)
 
-print('Accuracy:')
-print(correct_classification_count*100/validation_count)
+    # Phase 2
+zo = np.dot(ah, wo) + bo
+ao = sigmoid(zo)
+
+
+
+print(getHitRate(ao,y_test))
+
+plt.show()
