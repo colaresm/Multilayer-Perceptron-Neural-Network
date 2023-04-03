@@ -4,17 +4,17 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 
 import pandas as pd
-df=pd.read_csv('file.csv')
-df=df.drop(['Id'],axis=1)
+ 
 from sklearn.preprocessing import LabelEncoder
 label_encoder_teste = LabelEncoder()
 
 hit_rate_train=[]
 
 error_rate_train=[]
-X = df.iloc[:, 0:4].values
+df=pd.read_csv('features.csv')
+X = df.iloc[:, 0:25].values
 
-y = df.iloc[:, 4].values
+y = df.iloc[:, 25].values
 
 
 label_encoder_workclass = LabelEncoder()
@@ -27,7 +27,7 @@ y = label_encoder_workclass.fit_transform(y)
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 
-y_labed = np.zeros((len(y), 3))
+y_labed = np.zeros((len(y), 4))
 
 for i in range(len(y)):
     y_labed[i, y[i]] = 1
@@ -35,7 +35,7 @@ for i in range(len(y)):
 
 X = (X-np.mean(X))/(np.std(X))
 X_train, X_test, y_train, y_test = train_test_split(
-    X, y_labed, test_size=0.2)
+    X, y_labed, test_size=0.3)
 
 
 import numpy as np
@@ -67,8 +67,8 @@ def softmax(A):
 
 instances = feature_set.shape[0]
 attributes = feature_set.shape[1]
-hidden_nodes = 4
-output_labels = 3
+hidden_nodes = 20
+output_labels = 4
 
 wh = np.random.rand(attributes,hidden_nodes)
 bh = np.random.randn(hidden_nodes)
@@ -90,7 +90,7 @@ def decison(g):
     classification_smaple=[]
     g=np.array(g)
   
-    for i in range(0,3):
+    for i in range(0,len(g)):
         if(g[i]>0.5):
             classification_smaple.append(1)
         else: classification_smaple.append(0);
